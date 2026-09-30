@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lantern field 3D mockup</title>
+<title>Lantern field 3D mockup v2</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -25,6 +25,7 @@ h1{font-size:17px;font-weight:600;margin:0 6px 0 0;letter-spacing:.01em}
 button{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer;white-space:nowrap}
 button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 button[aria-pressed="true"]{background:var(--on);color:var(--on-ink);border-color:var(--on)}
+.ver{font-size:13px;font-weight:600;color:#fff;background:#c0392b;border-radius:4px;padding:5px 9px;white-space:nowrap}
 .doc{font-size:14px;font-weight:600;color:var(--on-ink);background:var(--on);border-radius:4px;padding:6px 10px;text-decoration:none;white-space:nowrap}
 .doc:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 #stage{flex:1;min-height:0;position:relative}
@@ -38,18 +39,16 @@ canvas:active{cursor:grabbing}
 <body>
 <div class="top">
   <h1>Lantern field mockup</h1>
+  <span class="ver">v2, for build: 8 straps, 30 Sep 2026</span>
   <a class="doc" href="build-sheet.html">Open the build sheet</a>
   <div class="group"><span>Look</span>
     <button id="lookWork" aria-pressed="false">Work light</button>
     <button id="lookShow" aria-pressed="true">Show</button>
   </div>
-  <div class="group"><span>Strap spacing</span>
-    <button id="sp46" aria-pressed="true">46 in</button>
-    <button id="sp36" aria-pressed="false">36 in</button>
-  </div>
   <div class="group">
     <button id="tIds" aria-pressed="false">Strap and lantern IDs</button>
     <button id="tLim" aria-pressed="false">9 ft and 15 ft lines</button>
+    <button id="tRig" aria-pressed="true">Lights on the truss</button>
     <button id="tRoom" aria-pressed="true">Tables and chairs</button>
   </div>
 </div>
@@ -65,16 +64,8 @@ canvas:active{cursor:grabbing}
 (function(){
 if(!window.THREE){ document.getElementById('msg').style.display='flex'; return; }
 
-var DATA={
-A:[[33,36,60],[60,18,39],[90,30,27],[135,20,72],[168,30,54],[207,18,36]],
-B:[[27,20,24],[63,36,57],[105,30,69],[138,36,42],[180,18,30],[210,20,60]],
-C:[[36,20,72],[75,30,48],[108,18,24],[132,20,57],[177,36,66],[204,18,21]],
-D:[[24,18,51],[60,20,69],[90,36,45],[129,20,33],[156,36,54],[195,30,30]],
-E:[[39,20,51],[78,18,27],[114,20,54],[147,30,66],[162,18,36],[192,36,60]],
-F:[[33,30,33],[84,18,63],[111,36,36],[144,18,54],[174,30,42],[210,20,72]],
-G:[[45,30,27],[72,36,66],[102,20,45],[126,30,69],[168,36,30],[201,18,51]]
-};
-var NAMES=['A','B','C','D','E','F','G'];
+var CONFIGS={"8":{"slots":[-165.2,-66.2,-33.5,0.0,30.6,101.4,132.2,164.8],"data":[[[51,36,51],[84,18,69],[108,36,39],[171,20,27],[195,30,54]],[[42,20,69],[81,30,36],[105,20,72],[138,30,39],[192,18,27]],[[30,30,66],[69,20,33],[93,36,63],[111,30,27],[156,18,72],[201,36,36]],[[27,18,54],[63,36,45],[90,18,24],[153,36,60],[207,20,51]],[[48,20,27],[75,18,60],[96,20,42],[135,18,51],[192,36,66]],[[36,36,42],[72,18,21],[111,36,60],[144,20,69],[174,30,39],[204,20,63]],[[54,30,63],[99,18,30],[147,30,48],[180,20,66],[195,18,42]],[[33,30,30],[66,18,69],[105,20,51],[168,30,60],[210,36,33]]]}};
+var NAMES=['A','B','C','D','E','F','G','H','I'];
 var STRAP_H=16, SPAN=20.7, HALF=SPAN/2, TRUSS_Y=16.5;
 
 var canvas=document.getElementById('c'), stage=document.getElementById('stage');
@@ -119,22 +110,34 @@ function textSprite(text,size,fg,bg){
   s.scale.set(size*2,size,1); s.renderOrder=20; return s;
 }
 
-var straps=[], lanternMeshes=[], glowMeshes=[], idSprites=[];
-NAMES.forEach(function(n,k){
-  var g=new THREE.Group();
-  var web=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,SPAN),matBlack); web.position.y=STRAP_H-0.03; g.add(web);
-  var hook=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.45),matHook); hook.position.set(0,STRAP_H-0.12,-HALF); g.add(hook);
-  var letter=textSprite(n,1.5,'#111111','#c8e600'); letter.position.set(0,STRAP_H+1.6,-HALF); letter.visible=false; g.add(letter); idSprites.push(letter);
-  DATA[n].forEach(function(d,i){
-    var r=d[1]/24, cy=STRAP_H-d[2]/12, z=-HALF+d[0]/12;
-    var m=new THREE.Mesh(new THREE.SphereGeometry(r,32,20),matLanternShow); m.position.set(0,cy,z); g.add(m); lanternMeshes.push(m);
-    var gl=new THREE.Mesh(new THREE.SphereGeometry(r*1.4,20,14),matGlow); gl.position.copy(m.position); g.add(gl); glowMeshes.push(gl);
-    var len=STRAP_H-(cy+r);
-    var cord=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,len,5),matCord); cord.position.set(0,STRAP_H-len/2,z); g.add(cord);
-    var id=textSprite(n+(i+1),0.9,'#111111','rgba(255,255,255,0.85)'); id.position.set(0,cy,z); id.visible=false; g.add(id); idSprites.push(id);
+var field=null, lanternMeshes=[], glowMeshes=[], idSprites=[], showLook=true, idsOn=false;
+function applyField(){
+  lanternMeshes.forEach(function(m){m.material=showLook?matLanternShow:matLanternWork;});
+  glowMeshes.forEach(function(m){m.visible=showLook;});
+  idSprites.forEach(function(s){s.visible=idsOn;});
+}
+function buildField(key){
+  if(field){ scene.remove(field); }
+  field=new THREE.Group(); lanternMeshes=[]; glowMeshes=[]; idSprites=[];
+  var cfg=CONFIGS[key];
+  cfg.data.forEach(function(L,k){
+    var n=NAMES[k], g=new THREE.Group(); g.position.x=cfg.slots[k]/12;
+    var web=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,SPAN),matBlack); web.position.y=STRAP_H-0.03; g.add(web);
+    var hook=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.45),matHook); hook.position.set(0,STRAP_H-0.12,-HALF); g.add(hook);
+    var letter=textSprite(n,1.5,'#111111','#c8e600'); letter.position.set(0,STRAP_H+1.6,-HALF); g.add(letter); idSprites.push(letter);
+    L.forEach(function(d,i){
+      var r=d[1]/24, cy=STRAP_H-d[2]/12, z=-HALF+d[0]/12;
+      var m=new THREE.Mesh(new THREE.SphereGeometry(r,32,20),matLanternShow); m.position.set(0,cy,z); g.add(m); lanternMeshes.push(m);
+      var gl=new THREE.Mesh(new THREE.SphereGeometry(r*1.4,20,14),matGlow); gl.position.copy(m.position); g.add(gl); glowMeshes.push(gl);
+      var len=STRAP_H-(cy+r);
+      var cord=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,len,5),matCord); cord.position.set(0,STRAP_H-len/2,z); g.add(cord);
+      var id=textSprite(n+(i+1),0.9,'#111111','rgba(255,255,255,0.85)'); id.position.set(0,cy,z); g.add(id); idSprites.push(id);
+    });
+    field.add(g);
   });
-  scene.add(g); straps.push(g);
-});
+  scene.add(field);
+  applyField();
+}
 
 function plane(w,h,mat){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat); }
 var floor=plane(124,37,matFloor); floor.rotation.x=-Math.PI/2; floor.position.set(8,0,-5.5); scene.add(floor);
@@ -160,6 +163,21 @@ function truss(x0,x1,z){ var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,1,1),m
 truss(-53,20,-21.2); truss(-53,38,-HALF); truss(-53,38,0); truss(-53,20,HALF);
 var ring=new THREE.Mesh(new THREE.TorusGeometry(9.84,0.5,8,48),matTruss); ring.rotation.x=Math.PI/2; ring.position.set(-6,TRUSS_Y,-5); scene.add(ring);
 
+var rig=new THREE.Group(); scene.add(rig);
+var matFix=new THREE.MeshStandardMaterial({color:0x26262b,roughness:0.6});
+var matLens=new THREE.MeshBasicMaterial({color:0x9fb6c9});
+function mover(x,z,s,topY){ var t=topY||16;
+  var base=new THREE.Mesh(new THREE.BoxGeometry(1.1*s,0.45*s,1.1*s),matFix); base.position.set(x,t-0.225*s,z); rig.add(base);
+  var head=new THREE.Mesh(new THREE.SphereGeometry(0.6*s,16,12),matFix); head.position.set(x,t-1.35*s,z); rig.add(head);
+  var lens=new THREE.Mesh(new THREE.CylinderGeometry(0.34*s,0.34*s,0.06,16),matLens); lens.position.set(x,t-1.95*s-0.02,z); rig.add(lens); }
+[-9.78,4.08,15.52].forEach(function(x){ mover(x,-HALF,1.25); mover(x,0,1.25); });
+[-15.13,-12.4,-9.71,-6.88,-4.15,-1.39,1.37,4.1,6.83,9.69,12.35,15.11].forEach(function(x){ mover(x,HALF,0.8); });
+[-12.25,-9.28,-6.31,-3.31,-0.31,2.66].forEach(function(z){ mover(5.68,z,0.8,15.8); });
+[[-10.93,-14.1],[-1.44,-14.0],[-11.23,2.76],[-1.44,2.97]].forEach(function(q){ mover(q[0],q[1],0.8); });
+[[-17.1,-HALF-0.75],[-7.41,-HALF-0.75],[7.08,-HALF-0.75],[-7.46,0.75],[6.69,0.75]].forEach(function(q){
+  var s=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.45,0.35),matFix); s.position.set(q[0],16.5,q[1]); rig.add(s); });
+var pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,20.1,8),matFix); pipe.rotation.x=Math.PI/2; pipe.position.set(5.68,15.9,-5.15); rig.add(pipe);
+
 var extras=new THREE.Group(); scene.add(extras);
 function roundTable(x,z,r){ var t=new THREE.Mesh(new THREE.CylinderGeometry(r,r,0.12,28),matTable); t.position.set(x,2.5,z); extras.add(t);
   var leg=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,2.5,8),matTable); leg.position.set(x,1.25,z); extras.add(leg); }
@@ -184,9 +202,9 @@ var matChair=new THREE.MeshStandardMaterial({color:0x8f8572,roughness:0.9});
 
 var limits=new THREE.Group(); limits.visible=false; scene.add(limits);
 function limitRect(y,label){
-  var pts=[new THREE.Vector3(-14,y,-HALF),new THREE.Vector3(14,y,-HALF),new THREE.Vector3(14,y,HALF),new THREE.Vector3(-14,y,HALF)];
+  var pts=[new THREE.Vector3(-15.5,y,-HALF),new THREE.Vector3(15.5,y,-HALF),new THREE.Vector3(15.5,y,HALF),new THREE.Vector3(-15.5,y,HALF)];
   var l=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xe0452c})); limits.add(l);
-  var s=textSprite(label,1.1,'#ffffff','#c0392b'); s.position.set(15.6,y,HALF); limits.add(s);
+  var s=textSprite(label,1.1,'#ffffff','#c0392b'); s.position.set(17,y,HALF); limits.add(s);
 }
 limitRect(9,'9 ft'); limitRect(15,'15 ft');
 
@@ -254,28 +272,22 @@ function setLook(show){
   scene.background=new THREE.Color(show?0x08080c:0xd9d5cc);
   hemi.intensity=show?0.10:0.62; sun.intensity=show?0:0.38;
   glowLights.forEach(function(l){l.visible=show;});
-  lanternMeshes.forEach(function(m){m.material=show?matLanternShow:matLanternWork;});
-  glowMeshes.forEach(function(m){m.visible=show;});
+  showLook=show; applyField();
   matFloor.color.set(show?0x3a3936:0xa9a59c); matDance.color.set(show?0x4a4640:0x8d887d);
   matWall.color.set(show?0x3c3a37:0xc4bfb5); matTable.color.set(show?0x8a857c:0xd8d3c8);
-  matTruss.color.set(show?0x555555:0x7d7d7d); matChair.color.set(show?0x5d564a:0x8f8572); stageLight.visible=show; matBand.emissive.set(show?0x6f6a60:0x000000);
-}
-function setSpacing(inches){
-  press('sp46',inches===46); press('sp36',inches===36);
-  straps.forEach(function(g,k){ g.position.x=(k-3)*inches/12; });
+  matTruss.color.set(show?0x555555:0x7d7d7d); matLens.color.set(show?0xcfe6ff:0x9fb6c9); matChair.color.set(show?0x5d564a:0x8f8572); stageLight.visible=show; matBand.emissive.set(show?0x6f6a60:0x000000);
 }
 document.getElementById('lookShow').addEventListener('click',function(){setLook(true);});
 document.getElementById('lookWork').addEventListener('click',function(){setLook(false);});
-document.getElementById('sp46').addEventListener('click',function(){setSpacing(46);});
-document.getElementById('sp36').addEventListener('click',function(){setSpacing(36);});
 function toggle(id,fn){ var b=document.getElementById(id); b.addEventListener('click',function(){ var on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',on?'true':'false'); fn(on); }); }
-toggle('tIds',function(on){ idSprites.forEach(function(s){s.visible=on;}); });
+toggle('tIds',function(on){ idsOn=on; applyField(); });
 toggle('tLim',function(on){ limits.visible=on; });
 toggle('tRoom',function(on){ extras.visible=on; });
+toggle('tRig',function(on){ rig.visible=on; });
 
 function resize(){ var w=stage.clientWidth,h=stage.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 if(window.ResizeObserver){ new ResizeObserver(resize).observe(stage); } else { window.addEventListener('resize',resize); }
-resize(); setLook(true); setSpacing(46); viewBtns[0].click();
+resize(); buildField('8'); setLook(true); viewBtns[0].click();
 (function loop(){ renderer.render(scene,camera); requestAnimationFrame(loop); })();
 })();
 </script>
